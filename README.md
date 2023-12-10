@@ -1,2 +1,1 @@
-# time-series
-Stock Market Analysis and Forecasting
+# Stock Market Analysis and Forecasting
