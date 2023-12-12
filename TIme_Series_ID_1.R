@@ -4,13 +4,14 @@ library(dplyr)
 library(forecast)
 library(tseries)
 
-# Loading the data and plotting time series
-load("C:/Users/DD/Desktop/Time Series Project/Time Series.RData")
+### Loading the data and plotting time series ####
+
+load("./Time Series.RData")
 plot(dt, ylab = 'Average VWAP')
 
 
 
-# Function to check Randomness
+### Function to check Randomness ####
 
 turning_point <-function(x)
 {
@@ -37,9 +38,10 @@ turning_point <-function(x)
     cat("On the basis of the given data the series is purely random")
   }
 }
+#=========================================#
 
 
-# Function to check Trend
+### Function to check Trend ####
 rel_ord <- function(data){
   len <- length(data)
   Q = 0
@@ -60,11 +62,10 @@ rel_ord <- function(data){
   
   cat(ifelse(abs(z) > crit.val, 'Trend is present', 'Trend is not present'))
 }
+#=========================================#
 
 
-
-##Function to check Seasonality
-
+### Function to check Seasonality ####
 test_stat <- function(m,c,r){
   x <- 0
   den <- c*r*(r+1)
@@ -91,45 +92,96 @@ seasonality_check <- function(y){
     cat("We fail to reject the null hypothesis, therefore may have seasonality")
   }
 }
+#=========================================#
+avg <- NULL
+variance <- NULL
+for(i in 1:length(dt))
+{
+  avg <- c(avg, mean(dt[1:i]))
+  variance <- c(variance, var(dt[1:i]))
+}
+avg <- ts(avg, start = c(2000, 1), frequency = 12)
+variance <- ts(variance, start = c(2000, 1), frequency = 12)
 
+par(mfrow = c(1, 2))
+plot(avg, type = "l", main = "Mean", ylab = "Price")
+plot(variance, type = "l", main = "Variance", ylab = "Price")
 
-## Test for Randomness
-turning_point(dt)
+# To decrease mean and variance we take log of values
+# Lograthmic scaling ####
+# As the magnitude of VWAP is quite large 
+# we will be working with lorathmic series
+
+log_dt <- log(dt)
+plot(log_dt)
+
+avg <- NULL
+variance <- NULL
+for(i in 1:length(dt))
+{
+  avg <- c(avg, mean(log_dt[1:i]))
+  variance <- c(variance, var(log_dt[1:i]))
+}
+avg <- ts(avg, start = c(2000, 1), frequency = 12)
+variance <- ts(variance, start = c(2000, 1), frequency = 12)
+
+par(mfrow = c(1, 2))
+plot(avg, type = "l", main = "Mean", ylab = "Price")
+plot(variance, type = "l", main = "Variance", ylab = "Price")
+
+# We have significantly decreased the mean and variance
+
+## Test for Randomness ####
+turning_point(log_dt)
 #from above we get to know that our data is not random
 #i.e. their exists trend and seasonality
+#=========================================#
 
+## Trend testing ####
+rel_ord(log_dt)      #Trend is present
+plot(decompose(log_dt))
 
-#Trend testing
-rel_ord(dt)      #Trend is present
-
-D_dt <- diff(dt) #detrending using differencing
+D_dt <- diff(log_dt) #detrending using differencing
 plot(D_dt, ylab = 'detrended data')
 
 rel_ord(D_dt)
-#Trend is not present now
+#Trend is now not present
+
+plot(decompose(D_dt))
+
+#=========================================#
+
 
 #Testing for Seasonality######
-seasonality_check(D_dt)
-#No seasonality
+seasonality_check(log_dt)
 
 
-plot(D_dt, main = "Plot of Detrended and Deseasonalised Data", ylab = "Price") 
+#=========================================#
+
+
+plot(D_dt, main = "Plot of Detrended Data", ylab = "log(Price)") 
 
 #Testing Stationarity#####
 
-adf.test(dt)
+adf.test(log_dt) #not stationary
 
 adf.test(D_dt)
 #Stationary
 
+#=========================================#
 
-#Checking White noise by acf and pacf
 
-acf(D_dt) # 1 significant spike suggesting value of q = 1
-pacf(D_dt) # 2 significant spike suggesting value of p = 2
+#Checking White noise by acf and pacf ####
+
+par(mfrow = c(1, 2))
+acf(as.numeric(D_dt), main = "Defrenced Time Series") # 1 significant spike suggesting value of q = 1
+pacf(as.numeric(D_dt), main = "Defrenced Time Series") # 0 significant spike suggesting value of p = 0
+par(mfrow = c(1, 1))
 
 #Spikes suggest it is not a white noise process
+#=========================================#
 
+#Model Identification ####
 D_dt <- ts(D_dt[1:239], start = c(2000, 1), frequency = 12)
 AIC <- matrix(0, nrow = 5, ncol = 5)
 minAIC <- Inf 
@@ -150,55 +202,35 @@ for(i in 0:4)
 }
 
 
-train_dat <- ts(dt[1:239], start = c(2000, 1), frequency = 12)
-test_dat <- ts(dt[240:252], start = c(2019, 12), frequency = 12)
+train_dat <- ts(log_dt[1:239], start = c(2000, 1), frequency = 12)
+test_dat <- ts(log_dt[240:252], start = c(2019, 12), frequency = 12)
 final_model <- arima(train_dat, c(best_model[1], 1, best_model[2]), method = "ML")
 min(AIC)
 
-plot(D_dt, type = 'l')
 
-
-model <- arma(D_dt, c(2, 3))
-plot(D_dt, type = "l", ylab = 'det
-     rended data')
+model <- arma(D_dt, c(1, 1))
+plot(D_dt, type = "l", ylab = 'detrended data')
 lines(model$fitted.values, col = 2)
 legend ("bottomleft", legend = c('Original', 'Predicted'), fill = c('black', 'red'))
 
-plot(final_model$residuals)
-
-# We see the residuals are scaled, so we scale them down
-
-
 plot(final_model$residuals, ylab = "residuals")
-acf(final_model$residuals)
-pacf(final_model$residuals)
+acf(as.numeric(final_model$residuals), main = " Residuals")
+pacf(as.numeric(final_model$residuals), main = " Residuals")
 
-#acc to acf and pacf we get to know it is white noise i.e. uncorrelated,
+#from acf and pacf we get to know it is white noise i.e. uncorrelated,
 #but in the main plt we can see that the residuals are scaled, therefore before making the qqplot we'll normalize them first
 
 residual <- scale(final_model$residuals, center = T, scale = T)
 qqnorm(residual, xlim = c(-2, 3), ylim = c(-2, 3))
 abline(0, 1, col = 2)
-checkresiduals(final_model) # take histogram from here
 
+# Residual analysis
+checkresiduals(final_model) 
 #We see that the residuals follow nomal distribution
 
-Gfit <- ts(D_dt[127:139], start = c(2010, 6), frequency = 12)
-predicted <- model$fitted.values[127:139]
-t <- ts(predicted, start = c(2010, 6), frequency = 12)
-kai2 <- data.frame(predicted, Gfit)
-View(kai2)
 
-subtract <- numeric(13)
-for(i in 1:13)
-{
-  subtract[i] <- ((kai2[i, 1] - kai2[i, 2])**2)/kai2[i, 1]
-}
-
-
-plot(Gfit)
-lines(t)
-
-plot(forecast(final_model, h=15))
+plot(forecast(final_model, h=14))
 
 lines(test_dat, col = 2)
+
+# We see that it lies within our predicted range
