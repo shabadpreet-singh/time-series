@@ -93,6 +93,8 @@ seasonality_check <- function(y){
   }
 }
 #=========================================#
+
+## Mean and Variance Analysis ####
 avg <- NULL
 variance <- NULL
 for(i in 1:length(dt))
@@ -106,6 +108,7 @@ variance <- ts(variance, start = c(2000, 1), frequency = 12)
 par(mfrow = c(1, 2))
 plot(avg, type = "l", main = "Mean", ylab = "Price")
 plot(variance, type = "l", main = "Variance", ylab = "Price")
+par(mfrow = c(1, 1))
 
 # To decrease mean and variance we take log of values
 # Lograthmic scaling ####
@@ -128,8 +131,11 @@ variance <- ts(variance, start = c(2000, 1), frequency = 12)
 par(mfrow = c(1, 2))
 plot(avg, type = "l", main = "Mean", ylab = "Price")
 plot(variance, type = "l", main = "Variance", ylab = "Price")
+par(mfrow = c(1, 1))
 
 # We have significantly decreased the mean and variance
+#=========================================#
+
 
 ## Test for Randomness ####
 turning_point(log_dt)
@@ -175,7 +181,7 @@ adf.test(D_dt)
 
 par(mfrow = c(1, 2))
 acf(as.numeric(D_dt), main = "Defrenced Time Series") # 1 significant spike suggesting value of q = 1
-pacf(as.numeric(D_dt), main = "Defrenced Time Series") # 0 significant spike suggesting value of p = 0
+pacf(as.numeric(D_dt), main = "Defrenced Time Series", ylim = c(-0.1, 0.9)) # 0 significant spike suggesting value of p = 0
 par(mfrow = c(1, 1))
 
 #Spikes suggest it is not a white noise process
